@@ -1,21 +1,24 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../context/authContext";
-import type { ReactNode } from "react";
+import type { JSX } from "react";
 
-interface Props {
-  children: ReactNode;
-}
-
-export default function ProtectedRoute({ children }: Props) {
+export default function ProtectedRoute({
+  children,
+}: {
+  children: JSX.Element;
+}) {
   const { user, loading } = useAuth();
 
+  // ⏳ WAIT for auth to resolve
   if (loading) {
-    return <p className="text-white">Loading...</p>;
+    return <div className="text-white p-4">Loading...</div>;
   }
 
+  // ❌ Not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  // ✅ Authenticated
+  return children;
 }
