@@ -29,20 +29,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   /* ---------- LOGIN ---------- */
   const login = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      const response = await authService.login({ email, password });
+  console.log("🔥 LOGIN FUNCTION CALLED", email, password);
 
-      setToken(response.token);
+  try {
+    setLoading(true);
 
-      const user = await authService.getCurrentUser();
-      setUser(user);
-    } catch (err: any) {
-      setError(err.message ?? "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+    console.log("➡️ calling authService.login");
+    const response = await authService.login({ email, password });
+    console.log("✅ login response", response);
+
+    setToken(response.accessToken);
+
+    console.log("➡️ calling /me");
+    const user = await authService.getCurrentUser();
+    console.log("✅ user", user);
+
+    setUser(user);
+  } catch (err: any) {
+    console.error("❌ login failed", err);
+    setError(err.message ?? "Login failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   /* ---------- LOGOUT ---------- */
   const logout = () => {
@@ -56,7 +66,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   /* ---------- RESTORE SESSION ---------- */
   useEffect(() => {
     const restoreSession = async () => {
-      const storedToken = localStorage.getItem("authToken");
+      const storedToken = localStorage.getItem("accessToken");
 
       if (!storedToken) {
         setLoading(false);

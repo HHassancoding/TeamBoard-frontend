@@ -11,7 +11,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("authToken");
+        const token = localStorage.getItem("accessToken");
 
 
         if (token) {
@@ -30,7 +30,7 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if(error.response?.status === 401) {
-            localStorage.removeItem("authToken");
+            localStorage.removeItem("accessToken");
             localStorage.removeItem("refreshToken");
 
             window.location.href = "/login";
