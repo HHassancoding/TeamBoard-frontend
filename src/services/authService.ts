@@ -21,13 +21,21 @@ export interface RegisterRequest{
     avatarInitials?: string;
 }
 
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  avatarInitials?: string;
+}
+
+
 export async function login(data: LoginRequest): Promise<LoginResponse>{
     const response = await api.post<LoginResponse>
     (
         '/api/auth/login', 
         data
     );
-    localStorage.setItem("token", response.data.token);
+    localStorage.setItem("authToken", response.data.token);
     localStorage.setItem("refreshToken", response.data.refreshToken);
     return response.data;
 }
@@ -41,8 +49,14 @@ export async function register(data: RegisterRequest): Promise<string>{
 }
 
 export async function logout(){
-    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
     localStorage.removeItem("refreshToken");
 }
+
+export async function getCurrentUser(): Promise<User> {
+  const response = await api.get<User>("/api/auth/me");
+  return response.data;
+}
+
 
 
