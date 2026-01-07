@@ -1,5 +1,5 @@
 import api from './api';
-import { Project } from '../types';
+import type { Project } from '../types';
 
 /**
  * Project Service

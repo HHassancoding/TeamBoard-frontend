@@ -6,21 +6,28 @@ import workspaceService from '../../services/workspaceService';
 import { X } from 'lucide-react';
 
 // Validation schema
-const workspaceSchema = z.object({
-  name: z.string()
-    .min(1, 'Workspace name is required')
-    .max(255, 'Name must be less than 255 characters'),
-  description: z.string().max(500, 'Description too long').optional(),
+const inviteSchema = z.object({
+  userId: z
+    .string()
+    .min(1, 'User ID is required')
+    .regex(/^\d+$/, 'Must be a valid numeric user ID'),
+  role: z.enum(['ADMIN', 'MEMBER', 'VIEWER']),
 });
 
-type WorkspaceFormData = z.infer<typeof workspaceSchema>;
 
-interface CreateWorkspaceModalProps {
+type InviteFormData = z.infer<typeof inviteSchema>;
+
+interface InviteMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
+  workspaceId: number;
 }
 
-export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspaceModalProps) {
+export default function InviteMemberModal({ 
+  isOpen, 
+  onClose, 
+  workspaceId 
+}: InviteMemberModalProps) {
   const queryClient = useQueryClient();
 
   const {
@@ -28,28 +35,39 @@ export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspac
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<WorkspaceFormData>({
-    resolver: zodResolver(workspaceSchema),
+  } = useForm<InviteFormData>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: {
+      role: 'MEMBER',
+    },
   });
 
-  // Mutation for creating workspace
-  const createMutation = useMutation({
-    mutationFn: workspaceService.createWorkspace,
+  // Mutation for inviting member
+  const inviteMutation = useMutation({
+    mutationFn: (data: { userId: number; role: 'ADMIN' | 'MEMBER' | 'VIEWER' }) => 
+      workspaceService.addWorkspaceMember(workspaceId, data),
     onSuccess: () => {
-      // Refetch workspaces list
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      // Refetch workspace members
+      queryClient.invalidateQueries({ 
+        queryKey: ['workspace-members', workspaceId] 
+      });
       // Close modal and reset form
       reset();
       onClose();
     },
     onError: (error: any) => {
-      alert(error.response?.data || 'Failed to create workspace');
+      const message = error.response?.data || 'Failed to invite member';
+      alert(message);
     },
   });
 
-  const onSubmit = (data: WorkspaceFormData) => {
-    createMutation.mutate(data);
+  const onSubmit = (data: InviteFormData) => {
+    inviteMutation.mutate({
+      userId: Number(data.userId),
+      role: data.role,
+    });
   };
+
 
   if (!isOpen) return null;
 
@@ -66,42 +84,47 @@ export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspac
 
         {/* Title */}
         <h2 className="text-2xl font-bold text-white mb-6">
-          Create Workspace
+          Invite Member
         </h2>
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Name Field */}
+          {/* User ID Field */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-              Workspace Name *
+            <label htmlFor="userId" className="block text-sm font-medium text-gray-300 mb-2">
+              User ID *
             </label>
             <input
-              id="name"
+              id="userId"
               type="text"
-              {...register('name')}
+              {...register('userId')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
-              placeholder="e.g., Marketing Team"
+              placeholder="e.g., 2"
             />
-            {errors.name && (
-              <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+            {errors.userId && (
+              <p className="text-red-500 text-sm mt-1">{errors.userId.message}</p>
             )}
+            <p className="text-gray-500 text-xs mt-1">
+              Enter the numeric ID of the user you want to invite
+            </p>
           </div>
 
-          {/* Description Field */}
+          {/* Role Field */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">
-              Description (optional)
+            <label htmlFor="role" className="block text-sm font-medium text-gray-300 mb-2">
+              Role *
             </label>
-            <textarea
-              id="description"
-              {...register('description')}
-              rows={3}
+            <select
+              id="role"
+              {...register('role')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
-              placeholder="What is this workspace for?"
-            />
-            {errors.description && (
-              <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>
+            >
+              <option value="MEMBER">Member - Can create and edit</option>
+              <option value="ADMIN">Admin - Full access</option>
+              <option value="VIEWER">Viewer - Read only</option>
+            </select>
+            {errors.role && (
+              <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
             )}
           </div>
 
@@ -119,7 +142,7 @@ export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspac
               disabled={isSubmitting}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Creating...' : 'Create'}
+              {isSubmitting ? 'Inviting...' : 'Invite'}
             </button>
           </div>
         </form>

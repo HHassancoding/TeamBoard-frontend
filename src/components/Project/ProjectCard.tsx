@@ -1,4 +1,4 @@
-import { Project } from '../../types';
+import type { Project } from '../../types';
 import { Calendar, User } from 'lucide-react';
 
 interface ProjectCardProps {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/authContext';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import workspaceService from '../services/workSpaceService';
+import workspaceService from '../services/workspaceService';
 import WorkspaceCard from '../components/Workspace/WorkspaceCard';
 import CreateWorkspaceModal from '../components/Workspace/CreateWorkspaceModal';
 import { Plus, LogOut, Loader2 } from 'lucide-react';
