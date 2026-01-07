@@ -1,12 +1,14 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "../context/authContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import * as authService from "../services/authService";
+import { useState } from "react";
 
 /* ---------------- ZOD SCHEMA ---------------- */
 
-const loginSchema = z.object({
+const registerSchema = z.object({
+  name: z.string().min(1, "Name is required"),
   email: z
     .string()
     .min(1, "Email is required")
@@ -16,29 +18,36 @@ const loginSchema = z.object({
     .min(8, "Password must be at least 8 characters"),
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type RegisterFormData = z.infer<typeof registerSchema>;
 
 /* ---------------- COMPONENT ---------------- */
 
-export default function LoginPage() {
-  const { login, error, clearError } = useAuth();
+export default function RegisterPage() {
   const navigate = useNavigate();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
   });
 
-  const onSubmit = async (data: LoginFormData) => {
-    clearError();
+  const onSubmit = async (data: RegisterFormData) => {
+    setServerError(null);
+
     try {
-      await login(data.email, data.password);
-      navigate("/dashboard");
-    } catch {
-      // error handled by AuthContext
+      await authService.register({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+      });
+
+      // ✅ Registration successful → go to login
+      navigate("/login");
+    } catch (err: any) {
+      setServerError(err.response?.data ?? "Registration failed");
     }
   };
 
@@ -46,10 +55,25 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <div className="w-full max-w-md bg-gray-800 p-8 rounded-lg shadow">
         <h1 className="text-2xl font-bold text-white mb-6 text-center">
-          TeamBoard Login
+          Create Account
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Name */}
+          <div>
+            <input
+              type="text"
+              placeholder="Name"
+              {...register("name")}
+              className="w-full px-4 py-2 rounded bg-gray-700 text-white focus:outline-none"
+            />
+            {errors.name && (
+              <p className="text-red-400 text-sm mt-1">
+                {errors.name.message}
+              </p>
+            )}
+          </div>
+
           {/* Email */}
           <div>
             <input
@@ -80,23 +104,30 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Error */}
-          {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
+          {/* Server Error */}
+          {serverError && (
+            <p className="text-red-500 text-sm text-center">
+              {serverError}
+            </p>
           )}
 
           {/* Submit */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50"
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
           >
-            {isSubmitting ? "Logging in..." : "Login"}
+            {isSubmitting ? "Creating account..." : "Register"}
           </button>
         </form>
 
-        
-
+        {/* Footer */}
+        <p className="text-gray-400 text-sm text-center mt-4">
+          Already have an account?{" "}
+          <Link to="/login" className="text-blue-400 hover:underline">
+            Login
+          </Link>
+        </p>
       </div>
     </div>
   );
