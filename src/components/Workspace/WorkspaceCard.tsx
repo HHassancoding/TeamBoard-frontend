@@ -4,9 +4,10 @@ import { Users, FolderKanban } from 'lucide-react';
 interface WorkspaceCardProps {
   workspace: Workspace;
   onClick: () => void;
+  projectCount?: number;
 }
 
-export default function WorkspaceCard({ workspace, onClick }: WorkspaceCardProps) {
+export default function WorkspaceCard({ workspace, onClick, projectCount = 0 }: WorkspaceCardProps) {
   return (
     <div
       onClick={onClick}
@@ -32,7 +33,7 @@ export default function WorkspaceCard({ workspace, onClick }: WorkspaceCardProps
         </div>
         <div className="flex items-center gap-1">
           <FolderKanban size={16} />
-          <span>0 projects</span>
+          <span>{projectCount} {projectCount === 1 ? 'project' : 'projects'}</span>
         </div>
       </div>
 

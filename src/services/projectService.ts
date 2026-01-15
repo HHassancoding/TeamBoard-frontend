@@ -28,7 +28,7 @@ export interface UpdateProjectRequest {
  * @param workspaceId - Workspace ID
  */
 export const getProjects = async (workspaceId: number): Promise<Project[]> => {
-  const response = await api.get<Project[]>(`/workspaces/${workspaceId}/projects`);
+  const response = await api.get<Project[]>(`/api/workspaces/${workspaceId}/projects`);
   return response.data;
 };
 
@@ -41,7 +41,7 @@ export const getProjects = async (workspaceId: number): Promise<Project[]> => {
  * @param projectId - Project ID
  */
 export const getProject = async (projectId: number): Promise<Project> => {
-  const response = await api.get<Project>(`/projects/${projectId}`);
+  const response = await api.get<Project>(`/api/projects/${projectId}`);
   return response.data;
 };
 
@@ -59,7 +59,7 @@ export const createProject = async (
   data: CreateProjectRequest
 ): Promise<Project> => {
   const response = await api.post<Project>(
-    `/workspaces/${workspaceId}/projects`,
+    `/api/workspaces/${workspaceId}/projects`,
     data
   );
   return response.data;
@@ -78,7 +78,7 @@ export const updateProject = async (
   projectId: number,
   data: UpdateProjectRequest
 ): Promise<Project> => {
-  const response = await api.put<Project>(`/projects/${projectId}`, data);
+  const response = await api.put<Project>(`/api/projects/${projectId}`, data);
   return response.data;
 };
 
@@ -91,7 +91,7 @@ export const updateProject = async (
  * @param projectId - Project ID
  */
 export const deleteProject = async (projectId: number): Promise<void> => {
-  await api.delete(`/projects/${projectId}`);
+  await api.delete(`/api/projects/${projectId}`);
 };
 
 // ==========================================

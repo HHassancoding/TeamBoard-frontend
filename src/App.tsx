@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import WorkspacePage from './pages/WorkspacePage';
+import BoardPage from './pages/BoardPage';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -30,14 +31,12 @@ function App() {
           }
         />
 
-        {/* Placeholder for project/board page */}
+        {/* Kanban Board Page */}
         <Route
           path="/workspace/:workspaceId/project/:projectId"
           element={
             <ProtectedRoute>
-              <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-                <h1 className="text-2xl">Project Board (Coming Soon)</h1>
-              </div>
+              <BoardPage />
             </ProtectedRoute>
           }
         />

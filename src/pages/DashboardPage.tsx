@@ -3,16 +3,17 @@ import { useAuth } from '../context/authContext';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import workspaceService from '../services/workspaceService';
+import projectService from '../services/projectService';
 import WorkspaceCard from '../components/Workspace/WorkspaceCard';
 import CreateWorkspaceModal from '../components/Workspace/CreateWorkspaceModal';
 import { Plus, LogOut, Loader2 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, logout, loading } = useAuth(); // ✅ ADD loading
+  const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // ✅ WAIT FOR AUTH BEFORE QUERY
+  // Fetch all workspaces
   const {
     data: workspaces,
     isLoading,
@@ -20,7 +21,31 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['workspaces'],
     queryFn: workspaceService.getWorkspaces,
-    enabled: !!user && !loading, // ✅ CRITICAL FIX
+    enabled: !!user && !loading,
+  });
+
+  // Fetch projects for each workspace to show project count
+  const {
+    data: allProjects,
+  } = useQuery({
+    queryKey: ['all-projects'],
+    queryFn: async () => {
+      if (!workspaces?.length) return {};
+      // Fetch projects for each workspace and map by workspaceId
+      const projectsByWorkspace: Record<number, any[]> = {};
+      await Promise.all(
+        workspaces.map(async (workspace) => {
+          try {
+            const projects = await projectService.getProjects(workspace.id);
+            projectsByWorkspace[workspace.id] = projects;
+          } catch {
+            projectsByWorkspace[workspace.id] = [];
+          }
+        })
+      );
+      return projectsByWorkspace;
+    },
+    enabled: !!workspaces?.length,
   });
 
   const handleLogout = () => {
@@ -113,6 +138,7 @@ export default function DashboardPage() {
                 key={workspace.id}
                 workspace={workspace}
                 onClick={() => handleWorkspaceClick(workspace.id)}
+                projectCount={allProjects?.[workspace.id]?.length || 0}
               />
             ))}
           </div>
