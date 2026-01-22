@@ -83,7 +83,16 @@ export default function CreateTaskModal({
       onClose();
     },
     onError: (error: any) => {
-      alert(error.response?.data || 'Failed to create task');
+      console.error('Task creation error:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      const errorMessage = error.response?.status === 403
+        ? 'Access denied. You may not be a member of this workspace. Please check your workspace membership.'
+        : error.response?.data || error.message || 'Failed to create task';
+      
+      alert(errorMessage);
     },
   });
 
