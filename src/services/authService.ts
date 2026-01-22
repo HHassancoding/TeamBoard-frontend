@@ -7,10 +7,10 @@ export interface LoginRequest{
 }
 
 export interface LoginResponse{
-    accessToken: string;
+    token: string;
     refreshToken: string;
     expiresIn: number;
-    username: string;
+    tokenType: string;
 }
 
 
@@ -35,7 +35,7 @@ export async function login(data: LoginRequest): Promise<LoginResponse> {
     data
   );
 
-  localStorage.setItem("accessToken", response.data.accessToken);
+  localStorage.setItem("accessToken", response.data.token);
   localStorage.setItem("refreshToken", response.data.refreshToken);
 
   return response.data;
@@ -56,7 +56,7 @@ export async function logout(){
 }
 
 export async function getCurrentUser(): Promise<User> {
-  const response = await api.get<User>("/api/auth/me");
+  const response = await api.post<User>("/api/auth/me");
   return response.data;
 }
 
