@@ -83,10 +83,13 @@ export default function CreateTaskModal({
       onClose();
     },
     onError: (error: any) => {
-      console.error('Task creation error:', error);
-      console.error('Error response:', error.response);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
+      // Only log detailed errors in development
+      if (import.meta.env.DEV) {
+        console.error('Task creation error:', error);
+        console.error('Error response:', error.response);
+        console.error('Error status:', error.response?.status);
+        console.error('Error data:', error.response?.data);
+      }
       
       const errorMessage = error.response?.status === 403
         ? 'Access denied. You may not be a member of this workspace. Please check your workspace membership.'
