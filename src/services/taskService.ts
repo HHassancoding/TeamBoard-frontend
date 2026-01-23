@@ -19,6 +19,22 @@ export const getTasks = async (projectId: number): Promise<Task[]> => {
   return response.data;
 };
 
+/**
+ * Fetches all tasks in a project (workspace-scoped path)
+ * Endpoint: GET /api/workspaces/{workspaceId}/projects/{projectId}/tasks
+ * @param workspaceId - Workspace ID (must match project's workspace)
+ * @param projectId - Project ID
+ */
+export const getTasksWithWorkspace = async (
+  workspaceId: number,
+  projectId: number
+): Promise<Task[]> => {
+  const response = await api.get<Task[]>(
+    `/api/workspaces/${workspaceId}/projects/${projectId}/tasks`
+  );
+  return response.data;
+};
+
 // ==========================================
 // GET TASKS BY COLUMN
 // ==========================================
@@ -64,6 +80,25 @@ export const createTask = async (
   return response.data;
 };
 
+/**
+ * Creates a new task in a project (workspace-scoped path)
+ * Endpoint: POST /api/workspaces/{workspaceId}/projects/{projectId}/tasks
+ * @param workspaceId - Workspace ID (must match project's workspace)
+ * @param projectId - Project ID
+ * @param data - Task data (title, description, columnId, assignedTo, priority, dueDate)
+ */
+export const createTaskWithWorkspace = async (
+  workspaceId: number,
+  projectId: number,
+  data: CreateTaskRequest
+): Promise<Task> => {
+  const response = await api.post<Task>(
+    `/api/workspaces/${workspaceId}/projects/${projectId}/tasks`,
+    data
+  );
+  return response.data;
+};
+
 // ==========================================
 // UPDATE TASK
 // ==========================================
@@ -86,7 +121,7 @@ export const updateTask = async (
 // ==========================================
 /**
  * Moves a task to a different column
- * Endpoint: PATCH /api/tasks/{taskId}/move
+ * Endpoint: PATCH /api/tasks/{taskId}/column/{columnId}
  * @param taskId - Task ID
  * @param columnId - Target column ID
  */
@@ -94,9 +129,7 @@ export const moveTask = async (
   taskId: number,
   columnId: number
 ): Promise<Task> => {
-  const response = await api.patch<Task>(`/api/tasks/${taskId}/move`, {
-    columnId,
-  });
+  const response = await api.patch<Task>(`/api/tasks/${taskId}/column/${columnId}`);
   return response.data;
 };
 
@@ -117,8 +150,10 @@ export const deleteTask = async (taskId: number): Promise<void> => {
 // ==========================================
 export default {
   getTasks,
+  getTasksWithWorkspace,
   getTasksByColumn,
   createTask,
+  createTaskWithWorkspace,
   updateTask,
   moveTask,
   deleteTask,

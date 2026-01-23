@@ -49,7 +49,7 @@ export default function WorkspacePage() {
   });
 
   const handleProjectClick = (projectId: number) => {
-    navigate(`/workspace/${workspaceId}/project/${projectId}`);
+    navigate(`/workspace/${workspaceIdNum}/project/${projectId}`);
   };
 
   if (workspaceLoading || projectsLoading || membersLoading) {

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import * as authService from "../services/authService";
 import type { User } from "../services/authService";
+import { queryClient } from "../main";
 
 /* ========== TYPES ========== */
 
@@ -40,6 +41,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     setToken(response.accessToken);
 
+    // Clear cache to prevent showing previous user's data
+    queryClient.clear();
+    console.log("✅ cache cleared on login");
+
     console.log("➡️ calling /me");
     const user = await authService.getCurrentUser();
     console.log("✅ user", user);
@@ -57,6 +62,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   /* ---------- LOGOUT ---------- */
   const logout = () => {
     authService.logout();
+    queryClient.clear();
+    console.log("✅ cache cleared on logout");
     setUser(null);
     setToken(null);
   };

@@ -127,8 +127,8 @@ export interface BoardColumn {
 export interface CreateTaskRequest {
   title: string;
   description?: string;
-  columnId: number;
-  assignedTo?: number;
+  // NOTE: Do NOT send columnId - backend auto-assigns to Backlog
+  assignedToId?: number;  // Changed from 'assignedTo' to match backend
   priority: Priority;
   dueDate?: string;
 }

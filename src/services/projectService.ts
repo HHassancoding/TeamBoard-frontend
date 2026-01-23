@@ -45,6 +45,23 @@ export const getProject = async (projectId: number): Promise<Project> => {
   return response.data;
 };
 
+/**
+ * Fetches details of a specific project (workspace-scoped path)
+ * Endpoint: GET /api/workspaces/{workspaceId}/projects/{projectId}
+ * Use this when backend authorization requires workspace context
+ * @param workspaceId - Workspace ID
+ * @param projectId - Project ID
+ */
+export const getProjectWithWorkspace = async (
+  workspaceId: number,
+  projectId: number
+): Promise<Project> => {
+  const response = await api.get<Project>(
+    `/api/workspaces/${workspaceId}/projects/${projectId}`
+  );
+  return response.data;
+};
+
 // ==========================================
 // CREATE PROJECT
 // ==========================================
@@ -100,6 +117,7 @@ export const deleteProject = async (projectId: number): Promise<void> => {
 export default {
   getProjects,
   getProject,
+  getProjectWithWorkspace,
   createProject,
   updateProject,
   deleteProject,

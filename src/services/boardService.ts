@@ -22,6 +22,23 @@ export const getColumns = async (projectId: number): Promise<BoardColumn[]> => {
   return response.data;
 };
 
+/**
+ * Fetches all columns for a project's board (workspace-scoped path)
+ * Endpoint: GET /api/workspaces/{workspaceId}/projects/{projectId}/columns
+ * @param workspaceId - Workspace ID (must match project's workspace)
+ * @param projectId - Project ID
+ * @returns Array of board columns (BACKLOG, TO_DO, IN_PROGRESS, DONE)
+ */
+export const getColumnsWithWorkspace = async (
+  workspaceId: number,
+  projectId: number
+): Promise<BoardColumn[]> => {
+  const response = await api.get<BoardColumn[]>(
+    `/api/workspaces/${workspaceId}/projects/${projectId}/columns`
+  );
+  return response.data;
+};
+
 // ==========================================
 // GET COLUMNS WITH NESTED TASKS
 // ==========================================
@@ -46,5 +63,6 @@ export const getColumnsWithTasks = async (
 // ==========================================
 export default {
   getColumns,
+  getColumnsWithWorkspace,
   getColumnsWithTasks,
 };

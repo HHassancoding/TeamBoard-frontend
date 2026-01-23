@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { BoardColumn, Task } from '../../types';
 import TaskCard from './TaskCard';
+import { getColumnStyle, getColumnHoverColor } from '../../utils/columnStyles';
 
 /**
  * BoardColumn Component
@@ -26,24 +27,20 @@ export default function BoardColumn({ column, onTaskClick }: BoardColumnProps) {
     id: column.id,
   });
 
-  // Column color schemes
-  const columnStyles = {
-    BACKLOG: 'border-gray-600',
-    TO_DO: 'border-blue-600',
-    IN_PROGRESS: 'border-yellow-600',
-    DONE: 'border-green-600',
-  };
-
   const tasks = column.tasks || [];
   const taskIds = tasks.map((task) => task.id);
+  
+  // Get dynamic styles based on column type
+  const borderStyle = getColumnStyle(column.columnType);
+  const hoverColor = getColumnHoverColor(column.columnType);
 
   return (
     <div
       className={`
         bg-gray-900 rounded-lg p-4 
         min-w-[280px] max-w-[320px] flex-shrink-0
-        border-t-4 ${columnStyles[column.columnType]}
-        ${isOver ? 'ring-2 ring-blue-500 bg-gray-850' : ''}
+        border-t-4 ${borderStyle}
+        ${isOver ? `ring-2 ${hoverColor} bg-gray-850` : ''}
       `}
     >
       {/* Column Header */}
@@ -61,7 +58,7 @@ export default function BoardColumn({ column, onTaskClick }: BoardColumnProps) {
       {/* Task List - Droppable & Sortable */}
       <div
         ref={setNodeRef}
-        className="space-y-2 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto"
+        className="space-y-2 min-h-[200px] max-h-[calc(100vh-250px)] overflow-y-auto"
       >
         {/* SortableContext manages the sortable items */}
         <SortableContext

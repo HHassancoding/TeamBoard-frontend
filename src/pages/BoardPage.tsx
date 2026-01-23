@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../context/authContext';
+import { collectPermissionDebugInfo } from '../utils/debugHelper';
 import {
   DndContext,
   DragOverlay,
@@ -58,6 +60,7 @@ import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
  */
 
 export default function BoardPage() {
+  const { user } = useAuth();
   const { workspaceId, projectId } = useParams<{
     workspaceId: string;
     projectId: string;
@@ -106,7 +109,28 @@ export default function BoardPage() {
     error: projectError,
   } = useQuery({
     queryKey: ['project', projectIdNum],
-    queryFn: () => projectService.getProject(projectIdNum),
+    queryFn: async () => {
+      console.log(`[BoardPage] Fetching project ${projectIdNum} with workspace ${workspaceIdNum}`);
+      const proj = await projectService.getProjectWithWorkspace(workspaceIdNum, projectIdNum);
+      console.log(`[BoardPage] Project loaded:`, {
+        id: proj.id,
+        name: proj.name,
+        workspaceId: proj.workspaceId,
+        expectedWorkspaceId: workspaceIdNum,
+        idsMatch: proj.workspaceId === workspaceIdNum,
+      });
+      
+      // Validate workspace ID matches
+      if (proj.workspaceId !== workspaceIdNum) {
+        console.error(`[BoardPage] WORKSPACE ID MISMATCH!`, {
+          urlWorkspaceId: workspaceIdNum,
+          projectWorkspaceId: proj.workspaceId,
+          projectId: projectIdNum,
+        });
+      }
+      
+      return proj;
+    },
     enabled: !!projectId,
   });
 
@@ -117,8 +141,24 @@ export default function BoardPage() {
     error: columnsError,
   } = useQuery({
     queryKey: ['columns', projectIdNum],
-    queryFn: () => boardService.getColumns(projectIdNum),
+    queryFn: () => {
+      console.log(`[BoardPage] Fetching columns for workspace ${workspaceIdNum}, project ${projectIdNum}`);
+      return boardService.getColumnsWithWorkspace(workspaceIdNum, projectIdNum);
+    },
     enabled: !!projectId,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 403/404 - likely ID mismatch or permission issue
+      if (error?.response?.status === 403 || error?.response?.status === 404) {
+        console.error(`[BoardPage] Column fetch failed with ${error.response.status}`, {
+          projectId: projectIdNum,
+          workspaceId: workspaceIdNum,
+          status: error.response.status,
+          message: error.response?.data,
+        });
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   // Fetch all tasks for the project
@@ -128,8 +168,24 @@ export default function BoardPage() {
     error: tasksError,
   } = useQuery({
     queryKey: ['tasks', projectIdNum],
-    queryFn: () => taskService.getTasks(projectIdNum),
+    queryFn: () => {
+      console.log(`[BoardPage] Fetching tasks for workspace ${workspaceIdNum}, project ${projectIdNum}`);
+      return taskService.getTasksWithWorkspace(workspaceIdNum, projectIdNum);
+    },
     enabled: !!projectId,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 403/404 - likely ID mismatch or permission issue
+      if (error?.response?.status === 403 || error?.response?.status === 404) {
+        console.error(`[BoardPage] Task fetch failed with ${error.response.status}`, {
+          projectId: projectIdNum,
+          workspaceId: workspaceIdNum,
+          status: error.response.status,
+          message: error.response?.data,
+        });
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   // Merge columns with tasks locally
@@ -138,15 +194,59 @@ export default function BoardPage() {
     tasks: tasksData?.filter((task) => task.columnId === column.id) || [],
   })) || [];
 
-  // Fetch workspace members for task assignment
+  // Fetch workspace members for task assignment and membership verification
   const {
     data: members,
     isLoading: membersLoading,
+    error: membersError,
   } = useQuery({
     queryKey: ['workspace-members', workspaceIdNum],
-    queryFn: () => workspaceService.getWorkspaceMembers(workspaceIdNum),
+    queryFn: async () => {
+      console.log(`[BoardPage] Fetching workspace members for workspace ${workspaceIdNum}`);
+      const membersList = await workspaceService.getWorkspaceMembers(workspaceIdNum);
+      console.log(`[BoardPage] Workspace members loaded:`, {
+        workspaceId: workspaceIdNum,
+        membersCount: membersList.length,
+        members: membersList.map(m => ({ userId: m.userId, email: m.userEmail, role: m.role })),
+        currentUserId: user?.id,
+        currentUserEmail: user?.email,
+        currentUserIsMember: membersList.some(m => m.userId === user?.id),
+      });
+      return membersList;
+    },
     enabled: !!workspaceId,
   });
+
+  // Check if current user is a member of the workspace
+  const userIsMember = members?.some(m => m.userId === user?.id);
+  const hasMembersData = members && members.length > 0;
+  
+  // Log membership check results
+  if (members && user) {
+    console.log(`[BoardPage] Membership check:`, {
+      userId: user.id,
+      userEmail: user.email,
+      isMember: userIsMember,
+      totalMembers: members.length,
+    });
+    
+    // Collect comprehensive debug info for backend support
+    collectPermissionDebugInfo({
+      userId: user.id,
+      userEmail: user.email,
+      projectId: projectIdNum,
+      workspaceId: workspaceIdNum,
+      members,
+    });
+    
+    if (!userIsMember && members.length > 0) {
+      console.error(`[BoardPage] ⚠️ MEMBERSHIP ISSUE: User ${user.id} (${user.email}) is NOT a member of workspace ${workspaceIdNum}!`, {
+        availableMembers: members.map(m => `User ${m.userId} (${m.userEmail})`),
+      });
+    } else if (userIsMember) {
+      console.log(`[BoardPage] ✅ User IS a workspace member, but backend may still reject project access due to backend permission bug`);
+    }
+  }
 
   // Mutation: Move task to different column
   const moveTaskMutation = useMutation({
@@ -231,6 +331,8 @@ export default function BoardPage() {
     if (!over) return;
 
     const taskId = active.id as number;
+    // IMPORTANT: Using column.id from backend response, NOT column name
+    // Backend expects: PATCH /api/tasks/{taskId}/column/{columnId}
     const targetColumnId = over.id as number;
 
     // Find task's current column
@@ -239,6 +341,7 @@ export default function BoardPage() {
     );
 
     if (currentColumn && currentColumn.id !== targetColumnId) {
+      console.log(`[BoardPage] Moving task ${taskId} from column ${currentColumn.id} to ${targetColumnId}`);
       // Move task to new column
       moveTaskMutation.mutate({ taskId, columnId: targetColumnId });
     }
@@ -265,12 +368,85 @@ export default function BoardPage() {
     );
   }
 
-  // Error state
-  if (projectError || columnsError || tasksError) {
+  // Membership verification error
+  if (!membersLoading && hasMembersData && !userIsMember) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-500 text-xl mb-4">Failed to load board</p>
+          <p className="text-red-500 text-xl mb-4">Access Denied</p>
+          <p className="text-gray-400 mb-6">You are not a member of this workspace. Contact the workspace owner to request access.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state with detailed information
+  if (projectError || columnsError || tasksError || membersError) {
+    const errorDetails = projectError || columnsError || tasksError || membersError;
+    const errorStatus = (errorDetails as any)?.response?.status;
+    const errorMessage = (errorDetails as any)?.message || 
+                        (errorDetails as any)?.response?.data || 
+                        'Failed to load board';
+    
+    // Check for workspace ID mismatch
+    const workspaceMismatch = project && project.workspaceId !== workspaceIdNum;
+    
+    // CRITICAL: If user is a member but still getting 403, it's a backend bug
+    const membershipOkBut403 = userIsMember && errorStatus === 403 && !workspaceMismatch;
+    
+    const debugInfo = {
+      projectId: projectIdNum,
+      workspaceId: workspaceIdNum,
+      projectActualWorkspaceId: project?.workspaceId,
+      workspaceMismatch,
+      userId: user?.id,
+      userEmail: user?.email,
+      isMember: userIsMember,
+      membershipOkBut403,
+      errorStatus,
+      timestamp: new Date().toISOString(),
+      error: errorMessage,
+    };
+    
+    console.error('BoardPage Error Details:', debugInfo);
+    
+    // Specific error message for workspace ID mismatch
+    let helpText = 'Share the debug information above with support if the error persists.';
+    
+    if (membershipOkBut403) {
+      helpText = `🐛 BACKEND BUG DETECTED: You ARE a workspace member (verified in frontend), but the backend's GET /api/projects/${projectIdNum} endpoint is incorrectly rejecting your request with 403. This is a backend permission check bug. The backend needs to fix its project access authorization logic.`;
+    } else if (workspaceMismatch) {
+      helpText = '⚠️ Workspace ID mismatch detected! The project does not belong to this workspace. This usually happens when navigating with incorrect URL parameters.';
+    } else if (errorStatus === 403) {
+      helpText = '⚠️ Access forbidden. You may not be a member of the workspace, or the workspace ID in the URL does not match the project\'s workspace.';
+    } else if (errorStatus === 404) {
+      helpText = '⚠️ Project or columns not found. The project may have been deleted, or the workspace ID in the URL is incorrect.';
+    }
+    
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <div className="text-center max-w-2xl">
+          <p className="text-red-500 text-xl mb-2">Failed to load board</p>
+          <p className="text-gray-400 mb-4 text-sm">{String(errorMessage)}</p>
+          
+          {/* Debug Information */}
+          <div className="bg-gray-800 rounded p-4 mb-6 text-left">
+            <p className="text-gray-300 text-xs font-mono mb-2">Debug Information:</p>
+            <pre className="text-gray-400 text-xs overflow-x-auto">
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </div>
+          
+          <p className="text-gray-500 text-xs mb-4">
+            {helpText}
+          </p>
+          
           <button
             onClick={() => navigate(`/workspace/${workspaceId}`)}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white"
@@ -283,7 +459,7 @@ export default function BoardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="h-screen bg-gray-900 text-white flex flex-col">
       {/* Header */}
       <header className="border-b border-gray-800 bg-gray-900 sticky top-0 z-10">
         <div className="max-w-full px-6 py-4">
@@ -318,7 +494,7 @@ export default function BoardPage() {
       </header>
 
       {/* Kanban Board */}
-      <main className="p-6 overflow-x-auto">
+      <main className="flex-1 p-6 overflow-x-auto overflow-y-auto">
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
@@ -357,6 +533,7 @@ export default function BoardPage() {
         <CreateTaskModal
           isOpen={isCreateTaskModalOpen}
           onClose={() => setIsCreateTaskModalOpen(false)}
+          workspaceId={workspaceIdNum}
           projectId={projectIdNum}
           columns={columns}
           members={members}

@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../../context/authContext';
 import workspaceService from '../../services/workspaceService';
 import { X } from 'lucide-react';
 
@@ -22,6 +23,7 @@ interface CreateWorkspaceModalProps {
 
 export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspaceModalProps) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const {
     register,
@@ -34,7 +36,40 @@ export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspac
 
   // Mutation for creating workspace
   const createMutation = useMutation({
-    mutationFn: workspaceService.createWorkspace,
+    mutationFn: async (data: WorkspaceFormData) => {
+      console.log('[CreateWorkspace] Creating workspace:', data);
+      const newWorkspace = await workspaceService.createWorkspace(data);
+      console.log('[CreateWorkspace] Workspace created:', newWorkspace);
+      
+      // WORKAROUND: Backend should auto-add owner as member, but if it doesn't, do it manually
+      if (user) {
+        try {
+          console.log('[CreateWorkspace] Adding owner as workspace member...', {
+            workspaceId: newWorkspace.id,
+            userId: user.id,
+            userEmail: user.email,
+          });
+          
+          await workspaceService.addWorkspaceMember(newWorkspace.id, {
+            userId: user.id,
+            role: 'ADMIN',
+          });
+          
+          console.log('[CreateWorkspace] ✅ Successfully added owner as member');
+        } catch (error: any) {
+          // This might fail if backend already added the member
+          const status = error?.response?.status;
+          if (status === 409 || status === 400) {
+            console.log('[CreateWorkspace] Owner already a member (expected if backend auto-adds)');
+          } else {
+            console.error('[CreateWorkspace] ⚠️ Failed to add owner as member:', error?.response?.data || error.message);
+            // Don't fail the whole operation, just warn
+          }
+        }
+      }
+      
+      return newWorkspace;
+    },
     onSuccess: () => {
       // Refetch workspaces list
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
@@ -43,6 +78,7 @@ export default function CreateWorkspaceModal({ isOpen, onClose }: CreateWorkspac
       onClose();
     },
     onError: (error: any) => {
+      console.error('[CreateWorkspace] Failed to create workspace:', error);
       alert(error.response?.data || 'Failed to create workspace');
     },
   });

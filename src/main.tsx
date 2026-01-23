@@ -5,8 +5,8 @@ import App from './App.tsx'
 import './index.css'
 import { AuthProvider } from './context/authContext'
 
-// Create a client
-const queryClient = new QueryClient({
+// Create a client (exported so it can be used in authContext and api.ts for cache invalidation)
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,

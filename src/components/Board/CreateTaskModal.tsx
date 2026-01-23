@@ -37,6 +37,7 @@ type TaskFormData = z.infer<typeof taskSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
+  workspaceId: number;
   projectId: number;
   columns: BoardColumn[];
   members: WorkspaceMember[];
@@ -45,6 +46,7 @@ interface CreateTaskModalProps {
 export default function CreateTaskModal({
   isOpen,
   onClose,
+  workspaceId,
   projectId,
   columns,
   members,
@@ -67,11 +69,11 @@ export default function CreateTaskModal({
   // Mutation for creating task
   const createMutation = useMutation({
     mutationFn: (data: TaskFormData) =>
-      taskService.createTask(projectId, {
+      taskService.createTaskWithWorkspace(workspaceId, projectId, {
         title: data.title,
         description: data.description,
-        columnId: data.columnId,
-        assignedTo: data.assignedTo,
+        // columnId removed - backend auto-assigns to Backlog
+        assignedToId: data.assignedTo,  // Changed field name to match backend
         priority: data.priority as Priority,
         dueDate: data.dueDate,
       }),
@@ -88,7 +90,10 @@ export default function CreateTaskModal({
   });
 
   const onSubmit = (data: TaskFormData) => {
-    createMutation.mutate(data);
+    createMutation.mutate({
+      ...data,
+      dueDate: data.dueDate ? `${data.dueDate}:00` : undefined,
+    });
   };
 
   const handleClose = () => {
@@ -239,7 +244,7 @@ export default function CreateTaskModal({
             </label>
             <input
               id="dueDate"
-              type="date"
+              type="datetime-local"
               {...register('dueDate')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
             />
